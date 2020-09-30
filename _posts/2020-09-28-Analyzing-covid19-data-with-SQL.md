@@ -1,3 +1,8 @@
+---
+layout: post
+title:  "Analyzing covid19 data with SQL test"
+---
+
 RIVM is a governmental health organisation in the Netherlands that publishes data here: https://data.rivm.nl/covid-19/. I show how the data can be inserted in a database for analysis.
 
 Tools used: PostgreSQL (the database system), HeidiSQL (a postgresql client application) and the Anaconda Python distribution including pandas and sqlalchemy (to extract data from sources and insert it into the database).
