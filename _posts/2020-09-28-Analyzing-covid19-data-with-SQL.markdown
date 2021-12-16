@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: default
 title:  "Analyzing covid19 data with SQL test"
 ---
 
