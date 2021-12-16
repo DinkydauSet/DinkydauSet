@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Analyzing covid19 data with SQL test"
+title:  "Analyzing covid19 data with SQL"
 ---
 
 RIVM is a governmental health organisation in the Netherlands that publishes data here: https://data.rivm.nl/covid-19/. I show how the data can be inserted in a database for analysis.
