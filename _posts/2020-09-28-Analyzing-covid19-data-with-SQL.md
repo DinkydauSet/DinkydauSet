@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: post
 title:  "Analyzing covid19 data with SQL"
 ---
 
