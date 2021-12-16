@@ -1,10 +1,14 @@
-<header class="page-header"  
-        role="banner">
-      <h1 class="project-name">Test naam</h1>
-</header>
-<main id="content" class="main-content" role="main">
-       {{ content }}
-      <footer class="site-footer">
-        &copy; test
-      </footer>
-</main>
+---
+layout: default
+title: home
+---
+<h1>Latest Posts</h1>
+
+<ul>
+  {% for post in site.posts %}
+    <li>
+      <h2><a href="{{ post.url }}">{{ post.title }}</a></h2>
+      {{ post.excerpt }}
+    </li>
+  {% endfor %}
+</ul>
