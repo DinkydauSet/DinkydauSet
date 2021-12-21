@@ -219,8 +219,12 @@ The same mutex can be used in multiple blocks of code, in which case only 1 thre
 </div>
 
 ### solution for the challenges
+	
+First requirement: the thread that creates new renders for a FractalCanvas should be the thread that destroys the FractalCanvas. If not, how can the thread that destroys the FractalCanvas safely do so? The other thread could start new renders any moment. There should not be a thread using the FractalCanvas while it's being destroyed. The thread that does create new renders is the GUI thread. It responds to key presses and mouse actions. The event handlers will start new renders. It's also the GUI thread that responds to a user's decision to close a tab, so the requirement is satisfied.
 
-The solution for the resource freeing problem that I use: count the number of threads using the resource, and free it only when there are 0 threads using it. Use program consistency after each message to guarantee that no new threads will start using the resource after that. For example, when a refreshthread is started (which refreshes the screen 10 times per second), a variable in the FractalCanvas which counts the number of non-render threads is updated, and again updated when the thread ends:
+The second requirement is that the FractalCanvas is destroyed after all threads using it are finished. The solution I use is counting the number of threads, and freeing the resource only when there are 0 threads using it. The program consistency after each message can be used to to guarantee that no new threads will start using the resource after that.
+	
+For example, when a refreshthread is started (which refreshes the screen 10 times per second), a variable in the FractalCanvas which counts the number of non-render threads is updated, and again updated when the thread ends:
 
 ```c++
 //start a refresh thread
@@ -263,7 +267,7 @@ while (true) {
 }
 ```
 
-The first while loop keeps cancelling renders until the queue is empty. It requests a lock for mutex activeRender. If that succeeds, there can be no active render, which ensures that renderQueueSize == 0 indeed means there are no more renders, not even an active one.
+These loops make sure that all threads using the FractalCanvas are finished. The first while loop keeps cancelling renders until the queue is empty. It requests a lock for mutex activeRender. If that succeeds, there can be no active render, which ensures that renderQueueSize == 0 indeed means there are no more renders, not even an active one.
 
 The second while loop does the same for bitmap renders, and in addition to that it also checks that the number of other threads is 0. This number should go to 0 automatically when all renders are finished because refreshthreads terminate themselves when the render is finished. The loop keeps spinning until all threads are finished.
 
