@@ -143,7 +143,7 @@ This problem can be solved with a mechanism for mutually exclusive access, which
 ```
 mutex m;
 void testfunction() {
-	lock_guard<mutexguard(m);
+	lock_guard<mutex> guard(m);
 	//only 1 thread can execute the remaining code in this block at the same time
 >	some_shared_variable += 1; //example protected action
 }
@@ -160,7 +160,7 @@ The solution for the resource freeing problem that I use: count the number of th
 ```c++
 //start a refresh thread
 canvas->addToThreadcount(1);
-thread refreshThread([=, &fm]()
+thread refreshThread([=]()
 {
 	refreshDuringRender(std::move(render), canvas, renderID);
 	canvas->addToThreadcount(-1);
