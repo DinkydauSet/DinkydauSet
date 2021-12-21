@@ -35,7 +35,7 @@ Here's a way the OS uses that control: the call to GetMessage only finishes when
 
 ### nana GUI library
 
-I use the GUI library nana for my program. Nana contains code for such a message loop already. Nana has an event system that (on windows at least) uses the windows API message system. For example, this is how to specify the action for a button click with nana:
+I use the GUI library nana for my program. Nana contains code for a message loop already. Nana has an event system that (on windows at least) uses the windows API message system. For example, this is how to specify the action for a button click with nana:
 
 ```c++
 button.events().click([](const arg_click& arg)
@@ -113,7 +113,7 @@ public:
 
 I consider it the responsibility of the FractalCanvas to raise events by calling these functions when appropriate. In the parent-child analogy: if a baby doesn't cry, the parent doesn't know there's something wrong. The baby needs to send a signal.
 
-Here's how the event system helps to achieve consistency in the GUI: if the FractalCanvas code contains no bugs, the GUI will always be notified of parameter changes. If the GUI also contains no bugs, it will always update the values in the GUI when there is a parameter change. (Remark: when I programmed this, changing the values in the GUI also caused a parameter change again, and therefore infinite recursion. I solved this by making use of the source_id's.
+Here's how the event system helps to achieve consistency in the GUI: if the FractalCanvas code contains no bugs, the GUI will always be notified of parameter changes. If the GUI also contains no bugs, it will always update the values in the GUI when there is a parameter change. (Remark: when I programmed this, changing the values in the GUI also caused a parameter change again, and therefore infinite recursion. I solved this by making use of the source_id.)
 
 # One thread for everything
 
