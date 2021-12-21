@@ -140,12 +140,12 @@ Now the number of renders in the queue is incorrect, because at the time thread 
 
 This problem can be solved with a mechanism for mutually exclusive access, which exists in C++:
 
-```
+```c++
 mutex m;
 void testfunction() {
 	lock_guard<mutex> guard(m);
 	//only 1 thread can execute the remaining code in this block at the same time
->	some_shared_variable += 1; //example protected action
+	some_shared_variable += 1; //example protected action
 }
 ```
 
