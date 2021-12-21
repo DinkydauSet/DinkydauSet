@@ -50,7 +50,7 @@ When using nana, maintaining consistency after each message translates to mainta
 
 Almost everything is an event. Every user action, whether it's a keypress, click, mouse cursor movement... is an event, so responding to user actions can be done entirely by registering event handlers like the one above. There are also other messages such as the WM_PAINT message which is a request from the OS to the program to redraw a part of the window. nana does that kind of stuff automatically. The windows API is low level and more detailed. I only use it for some things that nana can't do.
 
-# using events to achieve consistency in the GUI
+# Using events to achieve consistency in the GUI
 
 **Child components communicate with parent components through events.**
 
