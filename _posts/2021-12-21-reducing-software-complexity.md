@@ -7,7 +7,7 @@ While I was working on my program ExploreFractals I had segfaults, deadlocks, me
 
 ## Keeping the program in a consistent state
 
-I want the program to be in a consistent state after every action. For example, when the user clicks a button, the program may be temporarily in an inconsistent state during the handling of the click, but it should be consistent again before the next action is handled. This makes it possible to do assumptions. When writing code that handles a click, I know "The program is in a consistent state when this code begins, so..." and then various conclusions. Being able to make those assumptions makes writing the code a lot easier.
+**I want the program to be in a consistent state after every action.** For example, when the user clicks a button, the program may be temporarily in an inconsistent state during the handling of the click, but it should be consistent again before the next action is handled. This makes it possible to do assumptions. When writing code that handles a click, I know "The program is in a consistent state when this code begins, so..." and then various conclusions. Being able to make those assumptions makes writing the code a lot easier.
 
 On a lower level, actions correspond to messages from the OS (which is windows - my program is for windows (and works in wine)). This is how windows is designed. So what I want is the program to be consistent after every message.
 
@@ -75,7 +75,7 @@ thread([]()
 
 ### using one thread for everything
 
-Multiple threads can be problematic. If multiple messages are being handled at the same time by different threads, the handling of one message can put the program in an inconsistent state. The event handler for the other message doesn't know that, so in order for multithreaded event handling to work, event handlers can make almost no assumptions about the state of the program, which makes it difficult to do anything.
+**I want one thread that does everything there is to do, with exceptions to that rule only when strictly necessary.** Multiple threads can be problematic. If multiple messages are being handled at the same time by different threads, the handling of one message can put the program in an inconsistent state. The event handler for the other message doesn't know that, so in order for multithreaded event handling to work, event handlers can make almost no assumptions about the state of the program, which makes it difficult to do anything.
 
 This makes it attractive to use only one thread for the entire program, but that's not practical. My program renders fractals, which requires many computations. A compromise is to do fractal calculations with multiple threads, so that multiple CPU cores are used, and do everything else in one specific thread. The way I now think about it is this: multithreading is used *by exception* only, even if the "exception" is the core part of the program.
 
