@@ -66,7 +66,7 @@ Not everything fits well in the hierarchy model for several reasons: efficiency,
 
 ### JSON window example
 
-![image](https://user-images.githubusercontent.com/29734312/146868841-50588763-0ca5-422e-a111-9d43f9fa847a.png)
+![image](https://user-images.githubusercontent.com/29734312/146872687-ae0a1aa2-2f00-4fe4-b39a-9f46d84c8264.png)
 
 When the apply button in the JSON window is clicked, the following happens, described in natural language (simplified):
 
