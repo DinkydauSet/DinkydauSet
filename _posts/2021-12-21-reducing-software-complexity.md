@@ -50,6 +50,71 @@ When using nana, maintaining consistency after each message translates to mainta
 
 Almost everything is an event. Every user action, whether it's a keypress, click, mouse cursor movement... is an event, so responding to user actions can be done entirely by registering event handlers like the one above. There are also other messages such as the WM_PAINT message which is a request from the OS to the program to redraw a part of the window. nana does that kind of stuff automatically. The windows API is low level and more detailed. I only use it for some things that nana can't do.
 
+# using events to achieve consistency in the GUI
+
+**Child components communicate with parent components through events.**
+
+### component hierarchies
+
+I have been inspired by events in nana and javascript as a reliable method for communication between components. I think the reliability is essentially caused by the principle of parent-child communication. Communication in the direction parent-child is by direct usage of the child component by the parent. The parent may call functions on the child, or change values. Communcation in the direction child-parent is by events. You can think of it like this: parents components are boss. They can do with children what they wish. Children can only raise attention to an issue (say "there is an event!"). The parent decides how to respond.
+
+I think the reason this works well is the same as why a hierarchical power structure works well in organisations of people. It's always clear who/what's responsible: the leader / the parent component. It's a loosely layered approach that distributes program complexity over the many layers, causing the complexity of each individual layer to be manageable. This is also what happens in organisations of people. People have specialized jobs. They do their part. The net result is something so complex that no individual could have realized that. It's only a loosely layered approach because parents can do things with children of children of... etc. and not only their direct children.
+
+In ExploreFractals, the main window is the highest parent component. Its children are the components of the window such as the menubar, tabbar and fractal area, but also child windows. The help window is a child window.
+
+Not everything fits well in the hierarchy model for several reasons: efficiency, my laziness, lack of time and sometimes the model is just not applicable.
+
+### JSON window example
+
+![image](https://user-images.githubusercontent.com/29734312/146868841-50588763-0ca5-422e-a111-9d43f9fa847a.png)
+
+When the apply button in the JSON window is clicked, the following happens, described in natural language (simplified):
+
+1. Windows: to the program: here is a new message
+2. Nana: raises event: apply button clicked in the JSON window
+3. main_form: to grandgrandchild FractalCanvas: please use these new parameter values
+7. FractalCanvas: raises event: these new parameter values require a recalculation
+8. main_form: to grandgrandchild FractalCanvas: start a new render then! to grandchild FractalPanel: update the values in the GUI.
+10. FractalCanvas: raises event: a new render has been started
+11. main_form: I'll have to start a refreshthread then, to keep the screen up to date.
+12. FractalCanvas: raises event: the render has finished
+
+You see: the child components only say there is a situation. The parent component responds to the notification with actions and instructions.
+
+### events as function calls
+
+In a way, this idea is only a philosophical way to think about what's happening. In reality, there are not separate entities doing things. There is one CPU, with (most of the time) one thread of execution. An event is really a function call, which means that the same CPU now starts doing something else. Delegating work in this sense is like defining the next step for someone else and then doing it yourself.
+
+The way the FractalCanvas raises an event is by calling a function. I have defined some possible events that the GUI can respond to in an interface / abstract class:
+
+```c++
+/*
+	a (programming) interface for the graphical interface
+	Non-GUI classes can request action by the GUI through this interface.
+
+	"Started" means just that: a render has started.
+	"Finished" means that the render was 100% completed. Cancelled renders don't ever finish.
+
+	The int "source_id" is an identifier for the cause / source of the event which the GUI can use to handle it.
+*/
+class GUIInterface {
+public:
+	virtual void renderStarted(shared_ptr<RenderInterface> render) = 0;
+	virtual void renderFinished(shared_ptr<RenderInterface> render) = 0;
+	virtual void bitmapRenderStarted(void* canvas, uint bitmapRenderID) = 0;
+	virtual void bitmapRenderFinished(void* canvas, uint bitmapRenderID) = 0;
+	virtual void parametersChanged(void* canvas, int source_id) = 0;
+	virtual void canvasSizeChanged(void* canvas) = 0;
+	virtual void canvasResizeFailed(void* canvas, ResizeResult result) = 0;
+
+	virtual ~GUIInterface() {}
+};
+```
+
+I consider it the responsibility of the FractalCanvas to raise events by calling these functions when appropriate. In the parent-child analogy: if a baby doesn't cry, the parent doesn't know there's something wrong. The baby needs to send a signal.
+
+Here's how the event system helps to achieve consistency in the GUI: if the FractalCanvas code contains no bugs, the GUI will always be notified of parameter changes. If the GUI also contains no bugs, it will always update the values in the GUI when there is a parameter change. (Remark: when I programmed this, changing the values in the GUI also caused a parameter change again, and therefore infinite recursion. I solved this by making use of the source_id's.
+
 # One thread for everything
 
 **I want one thread that does everything there is to do, with exceptions to that rule only when strictly necessary.**
@@ -204,7 +269,7 @@ The second while loop does the same for bitmap renders, and in addition to that 
 
 This only works if no new renders are added to the queue, which is ensured by the way messages are handled. As long as a FractalCanvas exists in a tab, a user can cause new renders to start by changing the parameters, which is fine. Once the user closes the tab, the tab close event handler starts executing, which starts the cleanup of the FractalCanvas, which is the destructor code above. The event handler also removes the tab from the GUI. By the time the event is over, and the next message is received, the tab does not exist anymore, and another tab (or no tab at all) will have focus. Even if the next message is a button click from the user that would change the parameters, that click will affect the newly focused tab and not the old one. It's impossible for the user to cause new renders for the FractalCanvas in the closed tab. This works because messages are sequentially handled by one single thread.
 
-## Simple design
+# Simple design
 
 All of the above is part of a more general idea: simple design makes bugs less likely. The control thread design is simple because there can be no doubt about which thread is executing the event handlers. It's always the same thread.
 
