@@ -11,23 +11,27 @@ I want the program to be in a consistent state after every action. For example, 
 
 On a lower level, actions correspond to messages from the OS (which is windows - my program is for windows (and works in wine)). This is how windows is designed. So what I want is the program to be consistent after every message.
 
-> ### messages
-> 
-> The OS can send messages to a program. The program can choose to handle them. If not, they just pile up, like a mailbox that becomes fuller and fuller. The common way to handle messages is with a message loop, like this:
-> 
-> ```c++
-> MSG msg;
-> while (GetMessage(&msg, NULL, 0, 0)) {
-> 	TranslateMessage(&msg);
-> 	DispatchMessage(&msg);
-> }
-> ```
-> 
-> This shows that the program is in control of what it's doing, not the OS. The program *asks* the OS for a new message (GetMessage). If there is one, action can be taken depending on the data in the message object.  DispatchMessage calls the message handling function of the window that the message is indended for. Here you see that there is one message loop for the whole program, even if it has multiple windows. 
-> 
-> Functions like GetMessage are windows API functions. The functions are declared in C++ so that they can be used in code, but they are not defined in C++. The definition is in compiled libraries from windows that the program can be linked to. What the functions do is transfer control to the OS by using a CPU instruction. That means that by calling a windows API function, the OS is (temporarily) in control of what the program does. (The OS is always in control over *if* a program is executing or not.)
-> 
-> Here's a way the OS uses that control: the call to GetMessage only finishes when there is a message. The call is said to be "blocking". This is what causes a GUI program to use (near) 0% of the CPU when the user does nothing. The program is always either working or waiting for a new message. This is noteworthy because even though programs that can be "idle", such as GUIs, are very common, it's not the nature of a program to do nothing. C++ code specifies actions to be done, in sequence, until the program terminates. There is no code to "do nothing".
+<div style="background-color: rgb(247, 242, 232);">
+
+### messages
+
+The OS can send messages to a program. The program can choose to handle them. If not, they just pile up, like a mailbox that becomes fuller and fuller. The common way to handle messages is with a message loop, like this:
+
+```c++
+MSG msg;
+while (GetMessage(&msg, NULL, 0, 0)) {
+	TranslateMessage(&msg);
+	DispatchMessage(&msg);
+}
+```
+
+This shows that the program is in control of what it's doing, not the OS. The program *asks* the OS for a new message (GetMessage). If there is one, action can be taken depending on the data in the message object.  DispatchMessage calls the message handling function of the window that the message is indended for. Here you see that there is one message loop for the whole program, even if it has multiple windows. 
+
+Functions like GetMessage are windows API functions. The functions are declared in C++ so that they can be used in code, but they are not defined in C++. The definition is in compiled libraries from windows that the program can be linked to. What the functions do is transfer control to the OS by using a CPU instruction. That means that by calling a windows API function, the OS is (temporarily) in control of what the program does. (The OS is always in control over *if* a program is executing or not.)
+
+Here's a way the OS uses that control: the call to GetMessage only finishes when there is a message. The call is said to be "blocking". This is what causes a GUI program to use (near) 0% of the CPU when the user does nothing. The program is always either working or waiting for a new message. This is noteworthy because even though programs that can be "idle", such as GUIs, are very common, it's not the nature of a program to do nothing. C++ code specifies actions to be done, in sequence, until the program terminates. There is no code to "do nothing".
+	
+</div>
 
 ### nana GUI library
 
@@ -48,22 +52,26 @@ Almost everything is an event. Every user action, whether it's a keypress, click
 
 ## One thread for everything
 
-> ### threads of execution
-> 
-> If you think of a program as code that is being executed, one instruction after the other, that's a single threaded program. Only one instruction is being executed at any one time. A multithreaded program is a program where multiple parts of the code are executing at the same time. Each execution is a thread of execution. Having multiple parts of the code executing at the same time is literally possible if the CPU has multiple cores, but operating systems also simulate multithreading, so you don't need as many cores as there are threads for the observable behavior of a multithreaded program. The benefit of multiple CPU cores is just that the computer is more responsive and gets more work done because there are actually multiple cores working.
-> 
-> A thread can be created in c++ like this:
-> 
-> ```c++
-> thread([]()
-> {
-> 	//This is done in the new thread:
-> 	cout << "this is printed from a different thread" << endl;
-> 	//When here, the thread ends
-> }).detach();
-> ```
-> 
-> "thread" is a constructor that takes a function that the thread should execute. The "detach" means that the thread is detached from the constructed thread object, which in practice means that the thread will keep executing until it's done, even if the thread object goes out of scope.
+<div style="background-color: rgb(247, 242, 232);">
+	
+### threads of execution
+
+If you think of a program as code that is being executed, one instruction after the other, that's a single threaded program. Only one instruction is being executed at any one time. A multithreaded program is a program where multiple parts of the code are executing at the same time. Each execution is a thread of execution. Having multiple parts of the code executing at the same time is literally possible if the CPU has multiple cores, but operating systems also simulate multithreading, so you don't need as many cores as there are threads for the observable behavior of a multithreaded program. The benefit of multiple CPU cores is just that the computer is more responsive and gets more work done because there are actually multiple cores working.
+
+A thread can be created in c++ like this:
+
+```c++
+thread([]()
+{
+	//This is done in the new thread:
+	cout << "this is printed from a different thread" << endl;
+	//When here, the thread ends
+}).detach();
+```
+
+"thread" is a constructor that takes a function that the thread should execute. The "detach" means that the thread is detached from the constructed thread object, which in practice means that the thread will keep executing until it's done, even if the thread object goes out of scope.
+	
+</div>
 
 ### using one thread for everything
 
@@ -95,51 +103,51 @@ The fact that there is a queue of renders at all is because of my requirement to
 
 Multithreading is complex. That's why having a single control thread is appealing. Any simplifying design is appealing.
 
-<div style="background-color: rgb(255,0,0);">
+<div style="background-color: rgb(247, 242, 232);">
 
-> ### mutex locks
-> 
-> The second point above is about a race condition. The behavior of the program depends on the timing of the execution of 2 threads. A race condition is not always a problem. It's only a problem if one of the possible outcomes of the race is bad. In this case, one of the outcomes is indeed bad. The intended sequence of actions is either
-> 
-> > thread 1: render is finished
-> > thread 1: reads the number of renders in the queue
-> > thread 1: change the value to (old_value - 1)
-> > thread 2: new render starts
-> > thread 2: reads the number of renders in the queue
-> > thread 2: change the value to (old_value + 1)
-> 
-> or 
+### mutex locks
+
+The second point above is about a race condition. The behavior of the program depends on the timing of the execution of 2 threads. A race condition is not always a problem. It's only a problem if one of the possible outcomes of the race is bad. In this case, one of the outcomes is indeed bad. The intended sequence of actions is either
+
+> thread 1: render is finished
+> thread 1: reads the number of renders in the queue
+> thread 1: change the value to (old_value - 1)
+> thread 2: new render starts
+> thread 2: reads the number of renders in the queue
+> thread 2: change the value to (old_value + 1)
+
+or 
 >
-> > thread 2: new render starts
-> > thread 2: reads the number of renders in the queue
-> > thread 2: change the value to (old_value + 1)
-> > thread 1: render is finished
-> > thread 1: reads the number of renders in the queue
-> > thread 1: change the value to (old_value - 1)
+> thread 2: new render starts
+> thread 2: reads the number of renders in the queue
+> thread 2: change the value to (old_value + 1)
+> thread 1: render is finished
+> thread 1: reads the number of renders in the queue
+> thread 1: change the value to (old_value - 1)
 >
-> If the threads are performing their actions at almost exactly the same time, the actions can happen in an intertwined order such as:
+If the threads are performing their actions at almost exactly the same time, the actions can happen in an intertwined order such as:
 >
-> > thread 2: new render starts
-> > thread 1: render is finished
-> > thread 2: reads the number of renders in the queue
-> > thread 1: reads the number of renders in the queue
-> > thread 2: change the value to (old_value + 1)
-> > thread 1: change the value to (old_value - 1)
-> 
-> Now the number of renders in the queue is incorrect, because at the time thread 1 writes its change, the old value it's using was already changed again. Note that the cause of the problem has something to do with the fact that adding to a value in memory consists of more than 1 "atomic" operations: a read, an addition and a write.
-> 
-> This problem can be solved with a mechanism for mutually exclusive access, which exists in C++:
-> 
-> ```
-> mutex m;
-> void testfunction() {
-> 	lock_guard<mutex> guard(m);
-> 	//only 1 thread can execute the remaining code in this block at the same time
+> thread 2: new render starts
+> thread 1: render is finished
+> thread 2: reads the number of renders in the queue
+> thread 1: reads the number of renders in the queue
+> thread 2: change the value to (old_value + 1)
+> thread 1: change the value to (old_value - 1)
+
+Now the number of renders in the queue is incorrect, because at the time thread 1 writes its change, the old value it's using was already changed again. Note that the cause of the problem has something to do with the fact that adding to a value in memory consists of more than 1 "atomic" operations: a read, an addition and a write.
+
+This problem can be solved with a mechanism for mutually exclusive access, which exists in C++:
+
+```
+mutex m;
+void testfunction() {
+	lock_guard<mutexguard(m);
+	//only 1 thread can execute the remaining code in this block at the same time
 >	some_shared_variable += 1; //example protected action
-> }
-> ```
-> 
-> The same mutex can be used in multiple blocks of code, in which case only 1 thread is allowed to execute code in any of those blocks. More precisely: only one `lock_guard<mutex>` with the same mutex m can exist at any one time. If a thread tries to create one, while another one already exists, it waits. Mutexes can be used to protect pieces of code that change a value that is being used by multiple threads. It's also a little dangerous, because a deadlock situation can occur when 2 threads are both waiting for a mutex that the other thread is using. When that happens, both threads will wait forever.
+}
+```
+
+The same mutex can be used in multiple blocks of code, in which case only 1 thread is allowed to execute code in any of those blocks. More precisely: only one `lock_guard<mutex>` with the same mutex m can exist at any one time. If a thread tries to create one, while another one already exists, it waits. Mutexes can be used to protect pieces of code that change a value that is being used by multiple threads. It's also a little dangerous, because a deadlock situation can occur when 2 threads are both waiting for a mutex that the other thread is using. When that happens, both threads will wait forever.
 
 </div>
 
