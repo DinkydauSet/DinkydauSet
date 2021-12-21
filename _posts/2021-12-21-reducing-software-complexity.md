@@ -5,7 +5,7 @@ title:  "Reducing software complexity by design in ExploreFractals"
 
 While I was working on my program ExploreFractals I had segfaults, deadlocks, memory leaks, inconsistencies etc. I had to find solutions for these problems. What I eventually came up with are some ideas that all work together.
 
-## Keeping the program in a consistent state
+# Keeping the program in a consistent state
 
 **I want the program to be in a consistent state after every action.** For example, when the user clicks a button, the program may be temporarily in an inconsistent state during the handling of the click, but it should be consistent again before the next action is handled. This makes it possible to do assumptions. When writing code that handles a click, I know "The program is in a consistent state when this code begins, so..." and then various conclusions. Being able to make those assumptions makes writing the code a lot easier.
 
@@ -50,7 +50,9 @@ When using nana, maintaining consistency after each message translates to mainta
 
 Almost everything is an event. Every user action, whether it's a keypress, click, mouse cursor movement... is an event, so responding to user actions can be done entirely by registering event handlers like the one above. There are also other messages such as the WM_PAINT message which is a request from the OS to the program to redraw a part of the window. nana does that kind of stuff automatically. The windows API is low level and more detailed. I only use it for some things that nana can't do.
 
-## One thread for everything
+# One thread for everything
+
+**I want one thread that does everything there is to do, with exceptions to that rule only when strictly necessary.**
 
 <div style="background-color: rgb(247, 242, 232);">
 	
@@ -75,7 +77,7 @@ thread([]()
 
 ### using one thread for everything
 
-**I want one thread that does everything there is to do, with exceptions to that rule only when strictly necessary.** Multiple threads can be problematic. If multiple messages are being handled at the same time by different threads, the handling of one message can put the program in an inconsistent state. The event handler for the other message doesn't know that, so in order for multithreaded event handling to work, event handlers can make almost no assumptions about the state of the program, which makes it difficult to do anything.
+Multiple threads can be problematic. If multiple messages are being handled at the same time by different threads, the handling of one message can put the program in an inconsistent state. The event handler for the other message doesn't know that, so in order for multithreaded event handling to work, event handlers can make almost no assumptions about the state of the program, which makes it difficult to do anything.
 
 This makes it attractive to use only one thread for the entire program, but that's not practical. My program renders fractals, which requires many computations. A compromise is to do fractal calculations with multiple threads, so that multiple CPU cores are used, and do everything else in one specific thread. The way I now think about it is this: multithreading is used *by exception* only, even if the "exception" is the core part of the program.
 
@@ -109,29 +111,29 @@ Multithreading is complex. That's why having a single control thread is appealin
 
 The second point above is about a race condition. The behavior of the program depends on the timing of the execution of 2 threads. A race condition is not always a problem. It's only a problem if one of the possible outcomes of the race is bad. In this case, one of the outcomes is indeed bad. The intended sequence of actions is either
 
-> thread 1: render is finished
-> thread 1: reads the number of renders in the queue
-> thread 1: change the value to (old_value - 1)
-> thread 2: new render starts
-> thread 2: reads the number of renders in the queue
+> thread 1: render is finished  
+> thread 1: reads the number of renders in the queue  
+> thread 1: change the value to (old_value - 1)  
+> thread 2: new render starts  
+> thread 2: reads the number of renders in the queue  
 > thread 2: change the value to (old_value + 1)
 
 or 
 >
-> thread 2: new render starts
-> thread 2: reads the number of renders in the queue
-> thread 2: change the value to (old_value + 1)
-> thread 1: render is finished
-> thread 1: reads the number of renders in the queue
+> thread 2: new render starts  
+> thread 2: reads the number of renders in the queue  
+> thread 2: change the value to (old_value + 1)  
+> thread 1: render is finished  
+> thread 1: reads the number of renders in the queue  
 > thread 1: change the value to (old_value - 1)
 >
 If the threads are performing their actions at almost exactly the same time, the actions can happen in an intertwined order such as:
 >
-> thread 2: new render starts
-> thread 1: render is finished
-> thread 2: reads the number of renders in the queue
-> thread 1: reads the number of renders in the queue
-> thread 2: change the value to (old_value + 1)
+> thread 2: new render starts  
+> thread 1: render is finished  
+> thread 2: reads the number of renders in the queue  
+> thread 1: reads the number of renders in the queue  
+> thread 2: change the value to (old_value + 1)  
 > thread 1: change the value to (old_value - 1)
 
 Now the number of renders in the queue is incorrect, because at the time thread 1 writes its change, the old value it's using was already changed again. Note that the cause of the problem has something to do with the fact that adding to a value in memory consists of more than 1 "atomic" operations: a read, an addition and a write.
