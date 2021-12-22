@@ -73,10 +73,10 @@ When the apply button in the JSON window is clicked, the following happens, desc
 1. Windows: to the program: here is a new message
 2. Nana: raises event: apply button clicked in the JSON window
 3. main_form: to grandgrandchild FractalCanvas: please use these new parameter values
-7. FractalCanvas: raises event: these new parameter values require a recalculation
-8. main_form: to grandgrandchild FractalCanvas: start a new render then! to grandchild FractalPanel: update the values in the GUI.
+7. FractalCanvas: raises event: the parameters have changed
+8. main_form: to grandgrandchild FractalCanvas: start a new render. to grandchild FractalPanel: update the values in the GUI.
 10. FractalCanvas: raises event: a new render has been started
-11. main_form: I'll have to start a refreshthread then, to keep the screen up to date.
+11. main_form: starts a refreshthread, to keep the screen up to date during the render
 12. FractalCanvas: raises event: the render has finished
 
 You see: the child components only say there is a situation. The parent component responds to the notification with actions and instructions.
@@ -139,6 +139,10 @@ thread([]()
 "thread" is a constructor that takes a function that the thread should execute. The "detach" means that the thread is detached from the constructed thread object, which in practice means that the thread will keep executing until it's done, even if the thread object goes out of scope.
 	
 </div>
+
+### using one thread for everything
+
+
 
 ### using one thread for everything
 
