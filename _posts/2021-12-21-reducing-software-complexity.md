@@ -142,15 +142,27 @@ thread([]()
 
 ### using one thread for everything
 
+The idea of program consistency after every (user or non-user) action implies that all actions are handled sequentially. That's because if there can be multiple threads handling actions, at the moment one thread starts handling an action, the program may be in an inconsistent state because of another thread handling an action. This violates the consistency idea. My reason for the consinstency idea was to be able to make assumptions, and indeed, when there are multiple threads handling actions, they can make almost no assumptions about the state of the program, because there can be other threads changing the program state at the same time.
 
+This automatically leads to the idea of using one thread for everything. There are 2 reasons why that's not a good idea:
+1. performance. Fractal renders take much less time when multiple cores are used.
+2. responsiveness. For the user experience it is crucial that the GUI is resonsive during renders and other operations that can take a long time.
 
-### using one thread for everything
+So the next best thing, if one thread for everything is not an option, is to use one thread for _almost_ everything, and extra threads specifically for those situations that require extra threads. The way I now think about it is this: multithreading is used *by exception* only (even if the "exception" of doing renders is the core part of the program). 
 
-Multiple threads can be problematic. If multiple messages are being handled at the same time by different threads, the handling of one message can put the program in an inconsistent state. The event handler for the other message doesn't know that, so in order for multithreaded event handling to work, event handlers can make almost no assumptions about the state of the program, which makes it difficult to do anything.
+As reason (2) indicates, the need for threads depends on how long an operation takes. Almost all event handlers in the program take such a small amount of time to do their work that it's no problem if the program "hangs" during their execution. The time is too short to notice it as a user anyway. Those event handler can all be executed on the main thread - the thread that does almost everything.
 
-This makes it attractive to use only one thread for the entire program, but that's not practical. My program renders fractals, which requires many computations. A compromise is to do fractal calculations with multiple threads, so that multiple CPU cores are used, and do everything else in one specific thread. The way I now think about it is this: multithreading is used *by exception* only, even if the "exception" is the core part of the program.
+The main thread is sometimes called a control thread. It's a common design. I think this design, and the reasons for it, are why games benefit so much from single threaded performance. It's because they use 1 control thread that has way too much to do. In my program it's not a problem. Responding to button clicks etc. is fast enough to be done by 1 thread.
 
-The thread that does almost everything is sometimes called a control thread. It's a common design. I think this design, and the reasons for it, are why games benefit so much from single threaded performance. It's because they use 1 control thread that has way too much to do. In my program it's not a problem. Responding to button clicks etc. is fast enough to be done by 1 thread.
+### creating renders and the GUI
+
+After dealing with bugs and thinking about the situation, I concluded the following:
+
+**The thread that creates new renders for a FractalCanvas should be the thread that destroys the FractalCanvas.**
+
+If not, how can the thread that destroys the FractalCanvas safely do so? The other thread could start new renders any moment. There should not be a thread using the FractalCanvas while it's being destroyed.
+
+This requirement is automatically satisfied by using the main thread for both event handling and creating and changing the GUI. The main thread really does a lot. At the end of the main function, it creates the GUI and then starts handling events. Those events start all other actions that are possible in the program, such as creating a new tab. The event handler creates the tab and creates a new FractalPanel for it. Because FractalPanel has a FractalCanvas as one of its class members, the event handler automatically also creates the FractalCanvas. The same main thread responds to a request from the user to close a tab. The event handler then destroys the FractalPanel, including the FractalCanvas, which means that the main thread must be the thread starting renders too. Those renders that start because of a user action are started by an event handler, which is executed on the main thread by design.
 
 ### render progress and a responsive GUI
 
@@ -224,9 +236,9 @@ The same mutex can be used in multiple blocks of code, in which case only 1 thre
 
 ### solution for the challenges
 	
-First requirement: the thread that creates new renders for a FractalCanvas should be the thread that destroys the FractalCanvas. If not, how can the thread that destroys the FractalCanvas safely do so? The other thread could start new renders any moment. There should not be a thread using the FractalCanvas while it's being destroyed. The thread that does create new renders is the GUI thread. It responds to key presses and mouse actions. The event handlers will start new renders. It's also the GUI thread that responds to a user's decision to close a tab, so the requirement is satisfied.
+Preventing race conditions can be done with mutex locks; problem solved.
 
-The second requirement is that the FractalCanvas is destroyed after all threads using it are finished. The solution I use is counting the number of threads, and freeing the resource only when there are 0 threads using it. The program consistency after each message can be used to to guarantee that no new threads will start using the resource after that.
+The other challenge is to ensure that a FractalCanvas is only destroyed after all threads using it are finished. The solution I use is counting the number of threads, and freeing the resource only when there are 0 threads using it. The program consistency after each message can be used to to guarantee that no new threads will start using the resource after that.
 	
 For example, when a refreshthread is started (which refreshes the screen 10 times per second), a variable in the FractalCanvas which counts the number of non-render threads is updated, and again updated when the thread ends:
 
@@ -251,7 +263,7 @@ void addToThreadcount(int amount) {
 }
 ```
 
-It's important to count the number of other/non-render threads carefully. When a tab is closed and the FractalCanvas needs to be deleted from memory, there may be multiple renders and a refreshthread busy. The number of renders and recolorings (in the code called bitmap renders) in the queue is counted by renderQueueSize and bitmapRenderQueueSize respectively.
+This is only to count the number of non-render threads. I also use the (FractalCanvas) variables renderQueueSize and bitmapRenderQueueSize to count the number of renders and recolorings (in the code called bitmap renders) in the queue respectively.
  
 In the destructor of FractalCanvas I do
 
@@ -292,4 +304,96 @@ The second principe is there out of necessity, because the windows API message s
 
 ### simplification out of necessity or as a precaution
 
-I started thinking about simplification out of necessity. There were bugs in the program and I found it really difficult to fix them. This made me think: if simplification helps when the complexity is overwhelming, maybe it also helps when the complexity is already manageable. I now think all the time: how can I make this simpler? That is without sacrificing performance and user experience.
+I started thinking about simplification out of necessity. There were bugs in the program and I found it really difficult to fix them. This made me think: if simplification helps when the complexity is overwhelming, maybe it also helps when the complexity is already manageable. I now think all the time: how can I make this simpler? That is without sacrificing performance and user experience. I already think the function above is a bit complex.
+	
+# Encapsulating complexity
+	
+### the render queue
+	
+Sometimes there is no way to avoid complexity. An example of this is the render queues for the FractalCanvas. I really needed those queues for responsiveness, so I had to implement them. The implementation is encapsulated in a function.
+	
+```c++
+//
+// There can be multiple threads waiting to start if the user scrolls very fast and many renders per second are started and have to be cancelled again. To deal with that situation, this function places all new renders in a queue by using the mutex activeRender.
+// In addition, the mutex renderInfo is used to protect the variables that keep information about the number of renders, the last render ID etc.
+//
+void enqueueRender(bool new_thread = true)
+{
+	auto action = [this](uint renderID)
+	{
+		{
+			lock_guard<mutex> guard(activeRender);
+			//if here, it's this thread's turn
+			{
+				lock_guard<mutex> guard(genericMutex);
+				bool newerRenderExists = lastRenderID > renderID;
+
+				if (newerRenderExists)
+				{
+					if(debug) cout << "not starting render " << renderID << " as there's a newer render with ID " << lastRenderID << endl;
+					renderQueueSize--;
+					return;
+				}
+				else {
+					activeRenders++;
+				}
+			}
+			if(debug) cout << "starting render with ID " << renderID << endl;
+			createNewRender(renderID);
+			{
+				lock_guard<mutex> guard(genericMutex);
+				activeRenders--;
+				renderQueueSize--;
+			}
+		}
+		//After releasing the lock on activeRender, nothing should be done that uses the FractalCanvas. When the user closes a tab during a render, the FractalCanvas gets destroyed immediately after the lock is released.
+	};
+
+	uint renderID;
+
+	//update values to reflect that there's a new render
+	{
+		lock_guard<mutex> guard(genericMutex);
+		renderQueueSize++;
+		renderID = ++lastRenderID;
+	}
+
+	//actually start the render
+	if (new_thread)
+		thread(action, renderID).detach();
+	else
+		action(renderID);
+}
+```
+	
+It took time to get the logic right, but eventually it worked and the problem was solved. In the GUI code, all that's needed to start a new render is calling that function, which makes starting a render really simple.
+	
+### parameter changes
+	
+Another example of this is parameter changes. Every time there is a parameter change, logic is needed to determine whether the change requires a recalculation, a recoloring or a memory allocation. That's important because changing only the colors should not cause a whole new render of the fractal, for example. 
+
+I was inspired by how nana provides functions that accept other functions. I created the function FractalCanvas::changeParameters that accepts any parameter changing function:
+	
+```c+
+ResizeResult changeParameters(std::function<void(FractalParameters&)> action, int source_id = 0, bool check_modified_memory = true)
+{
+	...
+```
+	
+changeParameters is not very efficient, because it first applies the supplied action to a temporary copy of the current FractalParameters object, just to see if the action _would_ require a reallocation of memory, a recalculation etc. This doesn't matter because it's still very fast, and the benefit of having changeParameters is great. In the GUI code, changing the parameters is as simple as doing something like this (this is the behavior of the toggle julia button):
+	
+```c++
+canvas->changeParameters([](FractalParameters& P)
+{
+	P.setJulia( ! P.get_julia());
+	if (P.get_julia()) {
+		P.setJuliaSeed( P.map_transformations(P.get_center()) );
+		P.setCenterAndZoomAbsolute(0, 0);
+	}
+	else {
+		P.setCenterAndZoomAbsolute(P.get_juliaSeed(), 0);
+	}
+}, EventSource::julia);
+```
+	
+changeParameters knows nothing about the kind of parameter changing function it received. It just applies the function and then investigates what it needs to do based on its effects, for example: allocate new memory if the size has changed, wait for existing renders if so, and raise a parameter changed event.
