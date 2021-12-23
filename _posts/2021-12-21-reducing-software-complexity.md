@@ -151,7 +151,7 @@ thread([]()
 
 ### using one thread for everything
 
-The idea of program consistency after every (user or non-user) action implies that all actions are handled sequentially. That's because if there can be multiple threads handling actions, at the moment one thread starts handling an action, the program may be in an inconsistent state because of another thread handling an action. This violates the consistency idea. My reason for the consinstency idea was to be able to make assumptions, and indeed, when there are multiple threads handling actions, they can make almost no assumptions about the state of the program, because there can be other threads changing the program state at the same time.
+The idea of program consistency after every (user or non-user) action implies that all actions are handled sequentially. That's because if there can be multiple threads handling actions, at the moment one thread starts handling an action, the program may be in an inconsistent state because of another thread handling an action. This means that threads can make almost no assumptions about the state of the program - it could change any moment because of a different threading doing something. It would be very difficult or even impossible to make this work.
 
 This automatically leads to the idea of using one thread for everything. There are 2 reasons why that's not a good idea:
 1. performance. Fractal renders take much less time when multiple cores are used.
@@ -165,13 +165,13 @@ The main thread is sometimes called a control thread. It's a common design. I th
 
 ### creating renders and the GUI
 
-After dealing with bugs and thinking about the situation, I concluded the following:
+When it comes to renders, the following needs to be true:
 
 **The thread that creates new renders for a FractalCanvas should be the thread that destroys the FractalCanvas.**
 
 If not, how can the thread that destroys the FractalCanvas safely do so? The other thread could start new renders any moment. There should not be a thread using the FractalCanvas while it's being destroyed.
 
-This requirement is automatically satisfied by using the main thread for both event handling and creating and changing the GUI. The main thread really does a lot. At the end of the main function, it creates the GUI and then starts handling events. Those events start all other actions that are possible in the program, such as creating a new tab. The event handler creates the tab and creates a new FractalPanel for it. Because FractalPanel has a FractalCanvas as one of its class members, the event handler automatically also creates the FractalCanvas. The same main thread responds to a request from the user to close a tab. The event handler then destroys the FractalPanel, including the FractalCanvas, which means that the main thread must be the thread starting renders too. Those renders that start because of a user action are started by an event handler, which is executed on the main thread by design.
+This requirement is automatically satisfied by using the main thread for both event handling and creating and changing the GUI. The main thread really does a lot. At the end of the main function, it creates the GUI and then starts handling events. Those events start all actions that are possible in the program, such as closing a tab. When the user closes a tab, the event handler destroys the FractalPanel. Because FractalPanel has a FractalCanvas as one of its class members, the event handler automatically also destroys the FractalCanvas, so the main thread must be the thread that starts renders. It is, because renders are started from event handlers too, as consequences of actions.
 
 ### render progress and a responsive GUI
 
@@ -186,7 +186,7 @@ Cancelling renders can take time, because there are threads that are working tha
 
 ### challenges with multiple threads
 
-The challenge is complexity. There is so much going on in a program that it's very easy to forget some rare situation that can happen. You need to constantly ask yourself questions like "can it POSSIBLY be true that a refreshthread is executing while a tab is being closed?" Problems occur when two special situations are handled well in isolation, but not when they occur both at the same time. Threads execute at the same time, so you get a lot of those "at the same time" problems. Some things that should not happen at the same time:
+The challenge is complexity. There is so much going on in a program that it's very easy to forget some rare situation that can happen. You need to constantly ask yourself questions like "can it POSSIBLY be true that a refreshthread is executing _while_ a tab is being closed?" Problems occur when two special situations are handled well in isolation, but not when they occur both at the same time. Threads execute at the same time, so you get a lot of those "at the same time" problems. Some things that should not happen at the same time:
 
 - When a tab is closed during a render, its memory should not be freed until all renders, recolorings and progress updates are finished.
 - A new render is started at (almost) exactly the same time a previous render finished. Both threads update the number of renders in the queue with a new value at the same time (a race condition).
@@ -247,7 +247,7 @@ The same mutex can be used in multiple blocks of code, in which case only 1 thre
 	
 Preventing race conditions can be done with mutex locks; problem solved.
 
-The other challenge is to ensure that a FractalCanvas is only destroyed after all threads using it are finished. The solution I use is counting the number of threads, and freeing the resource only when there are 0 threads using it. The program consistency after each message can be used to to guarantee that no new threads will start using the resource after that.
+The other challenge is to ensure that a FractalCanvas is only destroyed after all threads using it are finished. The solution I use is counting the number of threads, and freeing the resource only when there are 0 threads using it. The program consistency after each message can be used to guarantee that no new threads will start using the resource after that.
 	
 For example, when a refreshthread is started (which refreshes the screen 10 times per second), a variable in the FractalCanvas which counts the number of non-render threads is updated, and again updated when the thread ends:
 
