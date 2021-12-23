@@ -407,4 +407,4 @@ canvas->changeParameters([](FractalParameters& P)
 	
 changeParameters knows nothing about the kind of parameter changing function it receives. It just applies the function and then investigates what it needs to do based on its effects, for example: allocate new memory if the size has changed, wait for existing renders if so, and raise a parameter changed event.
 	
-I think this example illustrates the benefit of encapsulation well. Using changeParameters makes it impossible to forget any of that, as long as the implementation of changeParameters is correct. A reoccuring danger of bugs is reduced to making only one part of the program bug free. With this approach, it either goes wrong everywhere or nowhere.
+I think this example illustrates the benefit of encapsulation well. Using changeParameters makes it impossible to forget the post parameter change actions, as long as the implementation of changeParameters is correct. A reoccuring danger of bugs is reduced to making only one part of the program bug free. With this approach, it either goes wrong everywhere or nowhere.
