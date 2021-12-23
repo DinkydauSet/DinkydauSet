@@ -383,7 +383,7 @@ Another example of this is parameter changes. Every time there is a parameter ch
 
 I was inspired by how nana provides functions that accept other functions. I created the function FractalCanvas::changeParameters that accepts any parameter changing function:
 	
-```c+
+```c++
 ResizeResult changeParameters(std::function<void(FractalParameters&)> action, int source_id = 0, bool check_modified_memory = true)
 {
 	...
