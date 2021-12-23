@@ -313,7 +313,7 @@ The second principe is there out of necessity, because the windows API message s
 
 ### simplification out of necessity or as a precaution
 
-I started thinking about simplification out of necessity. There were bugs in the program and I found it really difficult to fix them. This made me think: if simplification helps when the complexity is overwhelming, maybe it also helps when the complexity is already manageable. I now think all the time: how can I make this simpler? That is without sacrificing performance and user experience. I already think the function above is a bit complex.
+I started thinking about simplification out of necessity. There were bugs in the program and I found it really difficult to fix them. This made me think: if simplification helps when the complexity is overwhelming, maybe it also helps when the complexity is already manageable. I now think all the time: how can I make this simpler? That is without sacrificing performance and user experience.
 	
 # Encapsulating complexity
 	
