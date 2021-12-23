@@ -81,6 +81,15 @@ When the apply button in the JSON window is clicked, the following happens, desc
 
 You see: the child components only say there is a situation. The parent component responds to the notification with actions and instructions.
 
+This communication may seem cumbersome. The GUI does a request to change the parameters and then receives a notification that the parameters have changed. Of course they have, right? Maybe it is cumbersome, but at least there is one benefit that I see: it makes the code simpler. When the parameters change, the GUI always needs to do something afterwards, like updating the values in the GUI and creating a new history item. Without this event approach, the code to change parameters would look something like this:
+
+```c++
+canvas->changeParameters(newParameters, ...);
+parameterChangePostActions(...);
+```
+
+Everywhere in the GUI code where parameters are changed, those post parameter change actions should not be forgotten. With the event approach, they can never be forgotten. (There is one location in the GUI code where I don't want the post parameter change actions to happen, so I programmed a way to prevent them if needed.)
+
 ### events as function calls
 
 In a way, this idea is only a philosophical way to think about what's happening. In reality, there are not separate entities doing things. There is one CPU, with (most of the time) one thread of execution. An event is really a function call, which means that the same CPU now starts doing something else. Delegating work in this sense is like defining the next step for someone else and then doing it yourself.
@@ -366,11 +375,11 @@ void enqueueRender(bool new_thread = true)
 }
 ```
 	
-It took time to get the logic right, but eventually it worked and the problem was solved. In the GUI code, all that's needed to start a new render is calling that function, which makes starting a render really simple.
+It took time to get the logic right, but eventually it worked and the problem was solved. In the GUI code, all that's needed to start a new render is calling that function, which makes starting a render really simple and therefore less prone to bugs.
 	
 ### parameter changes
 	
-Another example of this is parameter changes. Every time there is a parameter change, logic is needed to determine whether the change requires a recalculation, a recoloring or a memory allocation. That's important because changing only the colors should not cause a whole new render of the fractal, for example. 
+Another example of this is parameter changes. Every time there is a parameter change, logic is needed to determine whether the change requires a recalculation, a recoloring or a memory allocation. That's important because changing only the colors should not cause a whole new render of the fractal, for example. That wouldn't be good for the user experience.
 
 I was inspired by how nana provides functions that accept other functions. I created the function FractalCanvas::changeParameters that accepts any parameter changing function:
 	
@@ -396,4 +405,6 @@ canvas->changeParameters([](FractalParameters& P)
 }, EventSource::julia);
 ```
 	
-changeParameters knows nothing about the kind of parameter changing function it received. It just applies the function and then investigates what it needs to do based on its effects, for example: allocate new memory if the size has changed, wait for existing renders if so, and raise a parameter changed event.
+changeParameters knows nothing about the kind of parameter changing function it receives. It just applies the function and then investigates what it needs to do based on its effects, for example: allocate new memory if the size has changed, wait for existing renders if so, and raise a parameter changed event.
+	
+I think this example illustrates the benefit of encapsulation well. Using changeParameters makes it impossible to forget any of that, as long as the implementation of changeParameters is correct. A reoccuring danger of bugs is reduced to making only one part of the program bug free. With this approach, it either goes wrong everywhere or nowhere.
